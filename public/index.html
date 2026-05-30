@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RELAY · Dispatch</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=Saira:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+  :root{
+    --bg:#0c0f14;--bg2:#11161f;--panel:#161d28;--panel2:#1c2533;--line:#26303f;--line2:#34415480;
+    --ink:#e8edf4;--ink2:#9fb0c4;--ink3:#647488;--hi:#ffb627;--hi-dim:#ffb62722;
+    --live:#3ddc97;--live-dim:#3ddc9722;--warn:#ff5d5d;--warn-dim:#ff5d5d22;--blue:#5aa9ff;
+    --disp:'Saira Condensed',sans-serif;--body:'Saira',sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:var(--body);background:var(--bg);color:var(--ink);min-height:100%;
+    background-image:radial-gradient(900px 500px at 85% -10%,#ffb6270d,transparent 60%),linear-gradient(#0c0f14,#0a0d12);}
+  ::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px}
+  header{display:flex;align-items:center;gap:14px;padding:13px 18px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#121822,#0e131b);position:sticky;top:0;z-index:50}
+  .brand{display:flex;align-items:center;gap:11px}
+  .logo{width:34px;height:34px;border-radius:8px;background:repeating-linear-gradient(45deg,var(--hi) 0 7px,#1a1206 7px 14px);border:1px solid #ffd47a;display:grid;place-items:center;box-shadow:0 0 0 3px #ffb62718}
+  .logo b{font-family:var(--disp);color:#1a1206;font-size:19px}
+  .brand h1{font-family:var(--disp);font-weight:700;letter-spacing:.16em;font-size:21px;margin:0;text-transform:uppercase}
+  .brand span{color:var(--hi)}.tag{font-family:var(--mono);font-size:10px;color:var(--ink3);letter-spacing:.18em;text-transform:uppercase;margin-top:1px}
+  .out{margin-left:auto;font-family:var(--disp);letter-spacing:.08em;text-transform:uppercase;font-size:12px;background:var(--panel2);border:1px solid var(--line);color:var(--ink2);padding:8px 13px;border-radius:7px;cursor:pointer}
+  .out:hover{color:var(--ink)}
+  main{max-width:1280px;margin:0 auto;padding:20px 18px 60px}
+  .grid{display:grid;grid-template-columns:380px 1fr;gap:18px;align-items:start}
+  @media(max-width:880px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .card-h{display:flex;align-items:center;gap:9px;padding:13px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#1a212d,#161d28)}
+  .card-h h2{font-family:var(--disp);font-weight:600;font-size:15px;letter-spacing:.12em;text-transform:uppercase;margin:0}
+  .card-h .ct{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink3)}
+  .pad{padding:16px}
+  label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3);margin:13px 0 5px}
+  label:first-child{margin-top:0}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  input,select{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--ink);font-family:var(--body);font-size:15px;padding:10px 12px;border-radius:8px;outline:none;transition:.15s}
+  input::placeholder{color:#4a596b}
+  input:focus{border-color:var(--hi);box-shadow:0 0 0 3px var(--hi-dim)}
+  .btn{width:100%;font-family:var(--disp);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:15px;border:none;border-radius:9px;padding:13px;cursor:pointer;transition:.15s;margin-top:16px;background:var(--hi);color:#1a1206}
+  .btn:hover{filter:brightness(1.08)}.btn:active{transform:translateY(1px)}
+  .btn.ghost{background:var(--panel2);color:var(--ink);border:1px solid var(--line)}
+  .btn.stop{background:var(--warn);color:#2a0808}.btn.blue{background:var(--blue);color:#05223f}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .loads{display:flex;flex-direction:column}
+  .empty{padding:34px 18px;text-align:center;color:var(--ink3);font-size:14px}
+  .empty b{display:block;font-family:var(--disp);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);font-size:15px;margin-bottom:5px}
+  .load{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line);cursor:pointer;transition:.12s;border-left:3px solid transparent}
+  .load:hover{background:var(--panel2)}.load.sel{background:var(--panel2);border-left-color:var(--hi)}
+  .load .num{font-family:var(--mono);font-weight:700;font-size:14px}
+  .load .meta{font-size:13px;color:var(--ink2);margin-top:2px;line-height:1.3}.load .meta .ar{color:var(--ink3)}
+  .load .right{margin-left:auto;text-align:right;flex:none}
+  .dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:5px;vertical-align:middle}
+  .badge{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:4px 8px;border-radius:20px;white-space:nowrap}
+  .b-wait{background:#34415433;color:var(--ink2)}.d-wait{background:var(--ink3)}
+  .b-live{background:var(--live-dim);color:var(--live)}.d-live{background:var(--live);animation:pulse 1.6s infinite}
+  .b-stale{background:var(--warn-dim);color:var(--warn)}.d-stale{background:var(--warn)}
+  .b-done{background:#5aa9ff22;color:var(--blue)}.d-done{background:var(--blue)}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 #3ddc9788}70%{box-shadow:0 0 0 7px #3ddc9700}100%{box-shadow:0 0 0 0 #3ddc9700}}
+  #map{height:340px;width:100%;background:#0a1018;z-index:1}
+  .leaflet-tile{filter:grayscale(.35) brightness(.78) contrast(1.05)}
+  .leaflet-container{background:#0a1018;font-family:var(--mono)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line)}
+  .stat{padding:13px 14px;border-right:1px solid var(--line)}.stat:last-child{border-right:none}
+  .stat .k{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+  .stat .v{font-family:var(--mono);font-weight:700;font-size:18px;margin-top:4px}
+  @media(max-width:560px){.stats{grid-template-columns:repeat(2,1fr)}.stat:nth-child(2){border-right:none}}
+  .route{display:flex;align-items:center;gap:12px;padding:14px 16px;border-top:1px solid var(--line)}
+  .route .pt{flex:1;min-width:0}.route .pt .k{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--ink3);text-transform:uppercase}
+  .route .pt .v{font-size:15px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.route .arrow{color:var(--hi);font-size:20px}
+  .invite{margin:14px 16px;padding:14px;border:1px dashed var(--line2);border-radius:11px;background:var(--bg2)}
+  .invite .lab{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink3)}
+  .linkbox{font-family:var(--mono);font-size:13px;color:var(--hi);background:#0a0d12;border:1px solid var(--line);border-radius:7px;padding:9px 11px;margin:7px 0 10px;word-break:break-all}
+  .invrow{display:flex;gap:8px}.invrow .btn{margin-top:0;font-size:12px;padding:9px}
+  .ctl{display:flex;gap:10px;padding:0 16px 16px}.ctl .btn{margin-top:0}
+  .pick{text-align:center;padding:40px 16px;color:var(--ink3);font-size:14px}.pick svg{opacity:.25;margin-bottom:10px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--hi);color:#1a1206;font-family:var(--disp);font-weight:700;letter-spacing:.06em;padding:12px 22px;border-radius:10px;z-index:200;transition:.3s;box-shadow:0 10px 30px #0008}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  /* login */
+  #login{min-height:100vh;display:grid;place-items:center;padding:24px}
+  .loginbox{width:340px;max-width:100%;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:28px;text-align:center}
+  .loginbox .logo{margin:0 auto 14px}
+  .loginbox h2{font-family:var(--disp);letter-spacing:.12em;text-transform:uppercase;margin:0 0 4px}
+  .loginbox p{color:var(--ink3);font-size:13px;margin:0 0 18px}
+  .err{background:var(--warn-dim);border:1px solid #ff5d5d44;color:#ffb0b0;font-size:13px;padding:9px 11px;border-radius:8px;margin-top:12px;font-family:var(--mono)}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="loginbox">
+    <div class="logo"><b>R</b></div>
+    <h2>RELAY Dispatch</h2>
+    <p>Enter your dispatcher key</p>
+    <input id="key" type="password" placeholder="dispatcher key" autocomplete="current-password">
+    <button class="btn" onclick="login()">Sign In</button>
+    <div id="loginErr"></div>
+  </div>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <div class="brand">
+      <div class="logo"><b>R</b></div>
+      <div><h1>RE<span>LAY</span></h1><div class="tag">Dispatch · Live Load Tracking</div></div>
+    </div>
+    <button class="out" onclick="logout()">Sign out</button>
+  </header>
+  <main>
+    <div class="grid">
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div class="card">
+          <div class="card-h"><h2>New Tracking Order</h2></div>
+          <div class="pad">
+            <label>Load / Reference #</label><input id="f-load" placeholder="e.g. 48201-A">
+            <div class="row2">
+              <div><label>Driver name</label><input id="f-name" placeholder="J. Rivera"></div>
+              <div><label>Driver phone</label><input id="f-phone" placeholder="+15550100"></div>
+            </div>
+            <label>Pickup (origin)</label><input id="f-orig" placeholder="Dallas, TX">
+            <label>Delivery (destination)</label><input id="f-dest" placeholder="Memphis, TN">
+            <label>Carrier / Outsource company</label><input id="f-carrier" placeholder="optional">
+            <button class="btn" onclick="createLoad()">Create &amp; Get Tracking Link</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-h"><h2>Active Loads</h2><span class="ct" id="loadCount">0</span></div>
+          <div class="loads" id="loadList"></div>
+        </div>
+      </div>
+      <div class="card" id="detail">
+        <div class="card-h"><h2>Tracking Detail</h2></div>
+        <div class="pick">
+          <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.6"/></svg>
+          <div>Select a load to view its live location,<br>or create one to get a driver link.</div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let KEY = sessionStorage.getItem('relay_key') || '';
+let SMS = false, selected = null, pollTimer = null;
+
+const $ = s => document.querySelector(s);
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove('show'),1900);}
+function esc(s){return (s+'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+function ago(ts){if(!ts)return '—';const s=Math.round((Date.now()-ts)/1000);if(s<5)return 'just now';if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';return Math.floor(s/3600)+'h ago';}
+function kmh(ms){return ms==null||ms<0?'—':Math.round(ms*3.6)+' km/h';}
+function statusOf(L,p){if(L.status==='done')return 'done';if(!p||!p.t)return 'wait';return (Date.now()-p.t)>150000?'stale':'live';}
+const SMAP={wait:['b-wait','d-wait','Awaiting driver'],live:['b-live','d-live','Live'],stale:['b-stale','d-stale','Signal lost'],done:['b-done','d-done','Delivered']};
+
+async function api(method, path, body){
+  const r = await fetch(path, {method, headers:{'Content-Type':'application/json','Authorization':'Bearer '+KEY}, body: body?JSON.stringify(body):undefined});
+  if(r.status===401){ logout(); throw new Error('unauthorized'); }
+  return r.json();
+}
+
+/* ---- auth ---- */
+async function login(){
+  KEY = $('#key').value.trim();
+  if(!KEY) return;
+  const r = await fetch('/api/config',{headers:{'Authorization':'Bearer '+KEY}});
+  if(r.status===200){ const c=await r.json(); SMS=!!c.sms; sessionStorage.setItem('relay_key',KEY); enterApp(); }
+  else { $('#loginErr').innerHTML='<div class="err">Wrong key. Try again.</div>'; }
+}
+function logout(){ sessionStorage.removeItem('relay_key'); KEY=''; clearInterval(pollTimer); $('#app').classList.add('hide'); $('#login').classList.remove('hide'); $('#key').value=''; }
+function enterApp(){ $('#login').classList.add('hide'); $('#app').classList.remove('hide'); refreshList(); }
+$('#key').addEventListener('keydown',e=>{if(e.key==='Enter')login();});
+
+/* ---- loads ---- */
+async function createLoad(){
+  const loadNo=$('#f-load').value.trim();
+  if(!loadNo){ toast('Enter a load #'); $('#f-load').focus(); return; }
+  const L = await api('POST','/api/loads',{loadNo,
+    driver:$('#f-name').value, phone:$('#f-phone').value,
+    origin:$('#f-orig').value, dest:$('#f-dest').value, carrier:$('#f-carrier').value});
+  ['f-load','f-name','f-phone','f-orig','f-dest','f-carrier'].forEach(i=>$('#'+i).value='');
+  toast('Load created');
+  await refreshList(); openDetail(L.token);
+}
+
+async function refreshList(){
+  let loads=[]; try{ loads=await api('GET','/api/loads'); }catch(e){ return; }
+  $('#loadCount').textContent=loads.length;
+  const el=$('#loadList');
+  if(!loads.length){ el.innerHTML='<div class="empty"><b>No active loads</b>Create a tracking order to start.</div>'; return; }
+  el.innerHTML=loads.map(L=>{
+    const st=statusOf(L,L.position);const[b,d,txt]=SMAP[st];
+    return `<div class="load ${selected===L.token?'sel':''}" onclick="openDetail('${L.token}')">
+      <div style="min-width:0">
+        <div class="num">#${esc(L.loadNo||L.ref)} <span style="color:var(--ink3);font-weight:400">· ${L.ref}</span></div>
+        <div class="meta">${esc(L.driver||'—')} <span class="ar">·</span> ${esc(L.origin||'—')} <span class="ar">→</span> ${esc(L.dest||'—')}</div>
+      </div>
+      <div class="right"><span class="badge ${b}"><span class="dot ${d}"></span>${txt}</span></div></div>`;
+  }).join('');
+}
+
+let map=null,marker=null,trail=null;
+async function openDetail(t){
+  selected=t; refreshList();
+  const L=await api('GET','/api/loads/'+t); if(L.error) return;
+  const phone=L.phone?` · ${esc(L.phone)}`:'';
+  const smsBtn = SMS && L.phone ? `<button class="btn blue" onclick="sendSms('${t}')">Text Link</button>` : '';
+  $('#detail').innerHTML=`
+    <div class="card-h"><h2>#${esc(L.loadNo||L.ref)}</h2><span class="ct">${L.ref}</span></div>
+    <div id="map"></div>
+    <div class="stats">
+      <div class="stat"><div class="k">Status</div><div class="v" id="s-state">—</div></div>
+      <div class="stat"><div class="k">Speed</div><div class="v" id="s-speed">—</div></div>
+      <div class="stat"><div class="k">Last ping</div><div class="v" id="s-ping">—</div></div>
+      <div class="stat"><div class="k">Accuracy</div><div class="v" id="s-acc">—</div></div>
+    </div>
+    <div class="route">
+      <div class="pt"><div class="k">Pickup</div><div class="v">${esc(L.origin||'—')}</div></div>
+      <div class="arrow">→</div>
+      <div class="pt" style="text-align:right"><div class="k">Delivery</div><div class="v">${esc(L.dest||'—')}</div></div>
+    </div>
+    <div class="invite">
+      <div class="lab">Driver tracking link${phone}</div>
+      <div class="linkbox" id="lk">${esc(L.trackUrl)}</div>
+      <div class="invrow">
+        <button class="btn" onclick="copyLink('${esc(L.trackUrl)}')">Copy Link</button>
+        ${smsBtn}
+      </div>
+    </div>
+    <div class="ctl">
+      ${L.status==='done'
+        ? `<button class="btn ghost" onclick="setStatus('${t}','open')">Re-open</button>`
+        : `<button class="btn ghost" onclick="recenter()">Recenter</button><button class="btn stop" onclick="setStatus('${t}','done')">Mark Delivered</button>`}
+    </div>
+    <div class="ctl" style="padding-top:0"><button class="btn ghost" style="background:transparent;border-color:#3a2530;color:#c97a7a" onclick="del('${t}')">Delete</button></div>`;
+  setTimeout(()=>{ initMap(); poll(); },40);
+}
+
+function initMap(){
+  if(map){ map.remove(); }
+  marker=null;trail=null;
+  map=L.map('map',{zoomControl:true,attributionControl:false}).setView([20,0],3);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+  setTimeout(()=>map.invalidateSize(),60);
+}
+function recenter(){ if(map&&marker) map.setView(marker.getLatLng(),11); }
+function truckIcon(){return L.divIcon({className:'',iconSize:[34,34],iconAnchor:[17,17],
+  html:`<div style="width:34px;height:34px;border-radius:50%;background:#3ddc97;border:3px solid #06281a;display:grid;place-items:center;box-shadow:0 0 0 6px #3ddc9733,0 4px 10px #000a;font-size:16px">🚚</div>`});}
+
+async function poll(){
+  clearInterval(pollTimer);
+  const draw=async()=>{
+    if(!selected) return;
+    let L; try{ L=await api('GET','/api/loads/'+selected); }catch(e){ return; }
+    if(!L||L.error) return;
+    const p=L.position, st=statusOf(L,p), [b,d,txt]=SMAP[st];
+    const se=$('#s-state'); if(!se) return;
+    const col=st==='live'?'var(--live)':st==='stale'?'var(--warn)':st==='done'?'var(--blue)':'var(--ink2)';
+    se.innerHTML=`<span style="color:${col}">${txt}</span>`;
+    $('#s-speed').textContent=p?kmh(p.spd):'—';
+    $('#s-ping').textContent=p?ago(p.t):'—';
+    $('#s-acc').textContent=p&&p.acc!=null?'±'+Math.round(p.acc)+'m':'—';
+    if(p&&map){
+      const ll=[p.lat,p.lng];
+      if(!marker){ marker=L.marker(ll,{icon:truckIcon()}).addTo(map); map.setView(ll,11); }
+      else marker.setLatLng(ll);
+      if(p.trail&&p.trail.length){
+        if(!trail) trail=L.polyline(p.trail,{color:'#ffb627',weight:3,opacity:.8}).addTo(map);
+        else trail.setLatLngs(p.trail);
+      }
+    }
+  };
+  await draw(); pollTimer=setInterval(draw,5000);
+}
+
+async function setStatus(t,s){ await api('PATCH','/api/loads/'+t,{status:s}); openDetail(t); }
+async function del(t){ await api('DELETE','/api/loads/'+t); selected=null; clearInterval(pollTimer);
+  $('#detail').innerHTML='<div class="card-h"><h2>Tracking Detail</h2></div><div class="pick"><div>Load deleted.</div></div>'; refreshList(); toast('Deleted'); }
+function copyLink(u){ navigator.clipboard?.writeText(u).then(()=>toast('Link copied'),()=>toast('Copy failed')); }
+async function sendSms(t){ const r=await api('POST','/api/loads/'+t+'/sms',{});
+  toast(r.ok?'Text sent ✓':('SMS error: '+(r.error||'failed'))); }
+
+/* boot */
+if(KEY){ fetch('/api/config',{headers:{'Authorization':'Bearer '+KEY}}).then(r=>{ if(r.ok){ r.json().then(c=>{SMS=!!c.sms;}); enterApp(); } else logout(); }); }
+</script>
+</body>
+</html>

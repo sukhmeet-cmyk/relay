@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Share Location · RELAY</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@600;700&family=Saira:wght@400;500;600&family=JetBrains+Mono:wght@400;600;700&display=swap');
+  :root{
+    --bg:#0c0f14;--bg2:#11161f;--panel:#161d28;--panel2:#1c2533;--line:#26303f;
+    --ink:#e8edf4;--ink2:#9fb0c4;--ink3:#647488;--hi:#ffb627;
+    --live:#3ddc97;--live-dim:#3ddc9722;--warn:#ff5d5d;--warn-dim:#ff5d5d22;
+    --disp:'Saira Condensed',sans-serif;--body:'Saira',sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;min-height:100%}
+  body{font-family:var(--body);background:var(--bg);color:var(--ink);min-height:100vh;
+    background-image:radial-gradient(700px 400px at 50% -10%,#ffb6270d,transparent 60%);
+    display:flex;flex-direction:column;align-items:center;padding:18px}
+  .logo{width:40px;height:40px;border-radius:9px;margin:6px 0 16px;background:repeating-linear-gradient(45deg,var(--hi) 0 8px,#1a1206 8px 16px);border:1px solid #ffd47a;display:grid;place-items:center}
+  .logo b{font-family:var(--disp);color:#1a1206;font-size:22px}
+  .card{width:100%;max-width:440px;background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden}
+  .head{padding:22px 20px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#1a212d,#161d28);text-align:center}
+  .head .ic{font-size:32px}
+  .head h2{font-family:var(--disp);letter-spacing:.08em;text-transform:uppercase;margin:8px 0 2px;font-size:22px}
+  .head p{color:var(--ink3);font-size:13px;margin:0;font-family:var(--mono)}
+  .big{text-align:center;padding:26px 20px}
+  .ping{width:84px;height:84px;border-radius:50%;margin:0 auto 16px;display:grid;place-items:center;background:var(--bg2);border:2px solid var(--line)}
+  .ping.on{border-color:var(--live);background:var(--live-dim)}
+  .ping .core{width:22px;height:22px;border-radius:50%;background:var(--ink3)}
+  .ping.on .core{background:var(--live);animation:pulse 1.5s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 #3ddc9788}70%{box-shadow:0 0 0 9px #3ddc9700}100%{box-shadow:0 0 0 0 #3ddc9700}}
+  .big .t{font-family:var(--disp);letter-spacing:.07em;text-transform:uppercase;font-size:21px}
+  .big .s{color:var(--ink2);font-size:13px;margin-top:5px;font-family:var(--mono)}
+  .info{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .info div{background:var(--panel);padding:13px 15px}
+  .info .k{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink3)}
+  .info .v{font-family:var(--mono);font-size:14px;font-weight:600;margin-top:3px;word-break:break-word}
+  .consent{display:flex;gap:10px;align-items:flex-start;padding:18px 20px 6px;font-size:12.5px;color:var(--ink2);line-height:1.45}
+  .consent input{width:auto;margin-top:2px;transform:scale(1.2)}
+  .btn{width:calc(100% - 40px);margin:14px 20px;font-family:var(--disp);font-weight:700;letter-spacing:.09em;text-transform:uppercase;font-size:17px;border:none;border-radius:11px;padding:15px;cursor:pointer;transition:.15s;background:var(--live);color:#06281a}
+  .btn:hover{filter:brightness(1.07)}.btn:active{transform:translateY(1px)}
+  .btn.stop{background:var(--warn);color:#2a0808}
+  .err{background:var(--warn-dim);border:1px solid #ff5d5d44;color:#ffb0b0;font-size:13px;padding:11px 13px;border-radius:10px;margin:0 20px 14px;font-family:var(--mono)}
+  .note{font-size:11.5px;color:var(--ink3);text-align:center;padding:6px 22px 20px;line-height:1.55;font-family:var(--mono)}
+  .center{min-height:60vh;display:grid;place-items:center;text-align:center;color:var(--ink3)}
+</style>
+</head>
+<body>
+  <div class="logo"><b>R</b></div>
+
+  <div class="card" id="card">
+    <div class="center" style="padding:40px">Loading…</div>
+  </div>
+
+<script>
+const token = location.pathname.split('/t/')[1] || '';
+let load=null, watchId=null, lastWrite=0, sharing=false;
+
+const $=s=>document.querySelector(s);
+function kmh(ms){return ms==null||ms<0?'—':Math.round(ms*3.6)+' km/h';}
+
+async function boot(){
+  if(!token){ fail('No tracking code in the link.'); return; }
+  try{
+    const r=await fetch('/api/track/'+token);
+    if(!r.ok){ fail('This tracking link is invalid or expired.'); return; }
+    load=await r.json();
+    render();
+  }catch(e){ fail('Connection problem. Check your signal and reload.'); }
+}
+function fail(m){ $('#card').innerHTML=`<div class="head"><div class="ic">⚠️</div><h2>Tracking</h2></div><div class="center" style="padding:34px 24px">${m}</div>`; }
+
+function render(){
+  $('#card').innerHTML=`
+    <div class="head">
+      <div class="ic">🚛</div>
+      <h2>Load ${esc(load.loadNo||load.ref)}</h2>
+      <p>${esc(load.origin||'—')} → ${esc(load.dest||'—')}</p>
+    </div>
+    <div class="big">
+      <div class="ping" id="ping"><div class="core"></div></div>
+      <div class="t" id="state">Not Sharing</div>
+      <div class="s" id="sub">Tap start to share your location with dispatch</div>
+    </div>
+    <div class="info">
+      <div><div class="k">Driver</div><div class="v">${esc(load.driver||'—')}</div></div>
+      <div><div class="k">Last sent</div><div class="v" id="last">—</div></div>
+      <div><div class="k">Coordinates</div><div class="v" id="coord">—</div></div>
+      <div><div class="k">Speed</div><div class="v" id="speed">—</div></div>
+    </div>
+    <div id="err"></div>
+    <label class="consent"><input type="checkbox" id="consent"><span>I agree to share my device location with the dispatcher for this load until delivery.</span></label>
+    <button class="btn" id="go" onclick="start()">Start Sharing</button>
+    <div class="note">Keep this page open and your screen on while driving. Location stops the moment you close it.</div>`;
+}
+function esc(s){return (s+'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));}
+function setPing(on,st,sub){ $('#ping').classList.toggle('on',on); $('#state').textContent=st; $('#sub').textContent=sub; }
+function err(m){ $('#err').innerHTML=m?`<div class="err">${m}</div>`:''; }
+
+function start(){
+  if(!$('#consent').checked){ err('Please tick the box to consent before sharing.'); return; }
+  if(!('geolocation' in navigator)){ err('This phone/browser does not support location sharing.'); return; }
+  err(''); sharing=true;
+  $('#go').outerHTML='<button class="btn stop" id="go" onclick="stop()">Stop Sharing</button>';
+  setPing(true,'Locating…','Waiting for first GPS fix');
+  watchId=navigator.geolocation.watchPosition(onPos,onErr,{enableHighAccuracy:true,maximumAge:4000,timeout:25000});
+}
+function stop(){
+  sharing=false;
+  if(watchId!=null){ navigator.geolocation.clearWatch(watchId); watchId=null; }
+  const b=$('#go'); if(b) b.outerHTML='<button class="btn" id="go" onclick="start()">Start Sharing</button>';
+  setPing(false,'Not Sharing','Tap start to share your location with dispatch');
+}
+function onErr(e){
+  if(e.code===1){ err('Location permission was denied. Enable location for this site in your browser settings, then tap Start again.'); stop(); }
+  else if(e.code===2){ err('Position unavailable — check GPS and signal.'); }
+  else { err('Still trying to get a fix…'); }
+}
+async function onPos(p){
+  const c=p.coords, now=Date.now();
+  $('#coord').textContent=c.latitude.toFixed(4)+', '+c.longitude.toFixed(4);
+  $('#speed').textContent=kmh(c.speed);
+  setPing(true,'Sharing Live','Dispatch can see your location');
+  if(now-lastWrite<10000) return;     // throttle to ~10s
+  lastWrite=now;
+  try{
+    await fetch('/api/track/'+token+'/ping',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({lat:c.latitude,lng:c.longitude,acc:c.accuracy,spd:c.speed,hdg:c.heading})});
+    $('#last').textContent='just now';
+  }catch(e){ err('Lost connection — retrying…'); }
+}
+setInterval(()=>{ if(sharing&&lastWrite){ const s=Math.round((Date.now()-lastWrite)/1000);
+  $('#last') && ($('#last').textContent = s<5?'just now':s<60?s+'s ago':Math.floor(s/60)+'m ago'); } },4000);
+
+boot();
+</script>
+</body>
+</html>
