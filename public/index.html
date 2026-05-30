@@ -256,9 +256,9 @@ async function poll(){
   clearInterval(pollTimer);
   const draw=async()=>{
     if(!selected) return;
-    let L; try{ L=await api('GET','/api/loads/'+selected); }catch(e){ return; }
-    if(!L||L.error) return;
-    const p=L.position, st=statusOf(L,p), [b,d,txt]=SMAP[st];
+    let ld; try{ ld=await api('GET','/api/loads/'+selected); }catch(e){ return; }
+    if(!ld||ld.error) return;
+    const p=ld.position, st=statusOf(ld,p), [b,d,txt]=SMAP[st];
     const se=$('#s-state'); if(!se) return;
     const col=st==='live'?'var(--live)':st==='stale'?'var(--warn)':st==='done'?'var(--blue)':'var(--ink2)';
     se.innerHTML=`<span style="color:${col}">${txt}</span>`;
